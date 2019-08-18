@@ -73,9 +73,9 @@ const char *get_file_type(const char *name);<br>
 
 <br>
 **4.效果图**<br>
-![](https://github.com/Anosy/Linux-web/blob/master/result/main_index.jpg)<br>
-![](https://github.com/Anosy/Linux-web/blob/master/result/code.jpg)<br>
-![](https://github.com/Anosy/Linux-web/blob/master/result/picture.jpg)<br>
-![](https://github.com/Anosy/Linux-web/blob/master/result/music.jpg)<br>
-![](https://github.com/Anosy/Linux-web/blob/master/result/404.jpg)<br>
-![](https://github.com/Anosy/Linux-web/blob/master/result/log.jpg)<br>
+![](https://github.com/Anosy/Linux-web/blob/master/result/main_index.jpg)
+![](https://github.com/Anosy/Linux-web/blob/master/result/code.jpg)
+![](https://github.com/Anosy/Linux-web/blob/master/result/picture.jpg)
+![](https://github.com/Anosy/Linux-web/blob/master/result/music.jpg)
+![](https://github.com/Anosy/Linux-web/blob/master/result/404.jpg)
+![](https://github.com/Anosy/Linux-web/blob/master/result/log.jpg)
