@@ -8,13 +8,13 @@ void encode_str(char* to, int tosize, const char* from);<br>
 void decode_str(char *to, char *from);<br>
 int init_listen_fd(int port, int epfd);<br>
 void epoll_run(int port);<br>
-void do_accpet(int cfd, int epfd);<br>
+void* do_accpet(void *arg);<br>
 void disconnect(int cfd, int epfd);<br>
 int get_line(int sock, char *buff, int size);<br>
 void send_respond_head(int cfd, int no, const char *desp, const char *type, long len);<br>
 void send_file(int cfd, const char *filename);<br>
 void http_request(const char *request, int cfd);<br>
-void do_read(int cfd, int efd);<br>
+void* do_read(void *arg);<br>
 void send_dir(int cfd, const char *filename);<br>
 const char *get_file_type(const char *name);<br>
 
@@ -23,27 +23,34 @@ const char *get_file_type(const char *name);<br>
 1.void epoll_run(int port)<br>
 利用epoll_create创建树的根节点<br>
 调用init_listen_fd来创建套接字，并且将其与服务器的绑定，监听，然后添加到epoll树上<br>
+创建线程池<br>
 使用while循环，并且调用epoll_wait不断的等待事件的发生。<br>
-如果发生的事件为接收连接请求，则调用do_accept<br>
-如果发生的事件为通信请求，则调用do_read<br>
+如果发生的事件为接收连接请求，则调用do_accept,即将do_accpet加入到线程池的任务队列中<br>
+如果发生的事件为通信请求，则调用do_read,即将do_read加入到线程池的任务队列中<br>
+循环结束，关闭线程池，关闭文件描述符
+
 2.int init_listen_fd(int port, int epfd) 创建通信套记者添加到epoll树上<br>
 创建套接字<br>
 绑定服务器地址和端口<br>
 利用setsockopt来实现端口复用<br>
 监听套接字<br>
 将连接套接字利用epoll_ctl给挂到epoll树上<br>
-3.void do_accept(int lfd, int epfd)<br>
+
+3.void* do_accpet(void *arg);<br>
 调用accpet接收客户端的连接请求，并且得到通信描述符<br>
 将通信的文件描述符给设定为边缘非阻塞模式<br>
 然后将其给加入到epoll树上等待检测事件<br>
-4.void do_read(int cfd, int epfd)<br>
+
+4.void* do_read(void *arg);<br>
 按行读取通信文件描述符，如果读取的文件描述读取的内容为空，则判断为客户端断开连接<br>
 由于开启了边缘触发模式，因此可以使用while循环来不断的读取数据，直到没有数据为止。<br>
 读取到数据，获得请求行，如果是get方法，那么调用http_request处理get请求<br>
+
 5.void http_request(const char *request, int cfd)<br>
 获取请求行，这里使用了正则表达式匹配，分别得到请求方法，请求文件，请求的协议<br>
 使用url解码，因为在浏览器发送请求的时候，会将中文给通过url编码给转换成%xx的形式，因此需要将其给转换成中文，否则显示乱码<br>
 获取文件的属性，并且判断该文件是目录还是文件，然后分别调用发送目录的函数send_dir, send_file，另外需要都需要发送响应头部分<br>
+
 6.void send_respond_head(int cfd, int no, const char *desp, const char *type, long len)<br>
 使用sprintf拼接出报头，包括状态行，消息报头，空行<br>
 7.void send_dir(int cfd, const char *filename)<br>
@@ -68,8 +75,11 @@ const char *get_file_type(const char *name);<br>
 另外需要指出的是边缘非阻塞模式下不适用于通信的文件描述符，因为这回导致高并发情况下，一部分客户端连接不上的情况。<br>
 因此，对于监听的文件描述符最好使用水平触发模式(默认模式)，对于通信的文件描述符最好使用边缘触发模式<br>
 2.为什么需要使用编码和解码函数<br>
-解码：因为浏览器向服务器发送请求的时候，将会把中文url编码转换成%xx的形式，因此需要将其给转换成中文，来显示<br><br>
+解码：因为浏览器向服务器发送请求的时候，将会把中文url编码转换成%xx的形式，因此需要将其给转换成中文，来显示<br>
 编码：读取目录后存在中文的文件地址，那么在将文件作为herf发送给浏览器的时候，需要将其给转换成url编码的形式，否则将无法访问地址<br>
+3.为什么要使用线程池
+因为在epoll_run函数中，在epoll_wait返回之后，调用for循环取处理每个事件，接收的请求不管是连接请求还是通信的请求都使用的是一个进程来执行。这将导致处理事件的过程成为一个串行的过程，
+需要等待一个事件处理完成，再去处理下一个事件，效率上很低。因此，添加上线程池，然后每次的请求就可以都加入到线程池中，让请求并发的处理，提高服务器的并发性。
 
 
 **4.效果图**<br>
@@ -79,4 +89,5 @@ const char *get_file_type(const char *name);<br>
 ![](https://github.com/Anosy/Linux-web/blob/master/result/music.jpg)<br>
 ![](https://github.com/Anosy/Linux-web/blob/master/result/404.jpg)<br>
 ![](https://github.com/Anosy/Linux-web/blob/master/result/log.jpg)<br>
+![](https://github.com/Anosy/Linux-web/blob/master/result/pthread.jpg)<br>
 

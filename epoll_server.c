@@ -10,9 +10,13 @@
 #include <dirent.h>
 #include <ctype.h>
 #include <time.h>
+#include <errno.h>
 #include "epoll_server.h"
+#include "threadpool.h"
 
+#define MINSIZE 100
 #define MAXSIZE 2000
+
 
 // 16进制数转化为10进制
 int hexit(char c)
@@ -137,8 +141,11 @@ void disconnect(int cfd, int epfd)
 }
 
 // 接收连接请求
-void do_accept(int lfd, int epfd)
+void *do_accept(void *arg)
 {
+    Info *info = (Info *)arg;
+    int lfd = info->fd;
+    int epfd = info->epfd;
     // 创建客户端的地址，作为传出参数
     struct sockaddr_in client;
     socklen_t len = sizeof(client);
@@ -146,7 +153,7 @@ void do_accept(int lfd, int epfd)
     if (cfd == -1)
     {
         perror("accpet error");
-        return;
+        return NULL;
     }
     // 打印客户端信息
     char ip[64] = {0};
@@ -165,7 +172,7 @@ void do_accept(int lfd, int epfd)
     if (ret == -1)
     {
         perror("epoll_ctl add cfd error");
-        return;
+        return NULL;
     }
 }
 
@@ -205,6 +212,14 @@ int get_line(int sock, char *buf, int size)
     return i;
 }
 
+// 404
+void no_found(int cfd)
+{
+    send_respond_head(cfd, 404, "File No Found!", ".html", -1);
+    send_file(cfd, "404.html");
+}
+
+
 // 发送报头
 void send_respond_head(int cfd, int no, const char *desp, const char *type, long len)
 {
@@ -231,8 +246,7 @@ void send_file(int cfd, const char *filename)
     int fd = open(filename, O_RDONLY);
     if (fd == -1)
     {
-        send_respond_head(cfd, 404, "File No Found!", ".html", -1);
-        send_file(cfd, "404.html");
+        no_found(cfd);
     }
     char buff[4096] = {0};
     int len = 0;
@@ -240,7 +254,7 @@ void send_file(int cfd, const char *filename)
     {
         write(cfd, buff, len);
         memset(buff, 0, len);
-        usleep(1000);
+        usleep(1000); // 设置延迟，否则将会文件拷贝不全
     }
     if (len == -1)
     {
@@ -326,8 +340,7 @@ void http_request(const char *request, int cfd)
     int ret = stat(file, &st);
     if (ret == -1)
     {
-        send_respond_head(cfd, 404, "File Not Found", ".html", -1);
-        send_file(cfd, "404.html");
+        no_found(cfd);
     }
     // 判断是目录还是文件
     // 如果是目录
@@ -349,8 +362,11 @@ void http_request(const char *request, int cfd)
 }
 
 //  读取通信数据
-void do_read(int cfd, int epfd)
+void* do_read(void *arg)
 {
+    Info *info = (Info *)arg;
+    int cfd = info->fd;
+    int epfd = info->epfd;
     char line[1024] = {0};
     int len = get_line(cfd, line, sizeof(line));
     if (len == 0)
@@ -358,7 +374,19 @@ void do_read(int cfd, int epfd)
         printf("客户端断开了连接!\n");
         disconnect(cfd, epfd);
     }
-    else
+    else if (len == -1)
+    {
+        if (errno == EAGAIN)
+        {
+            printf("缓存区的数据已经读取完毕！\n");
+        }
+        else
+        {
+            perror("read error");
+            return NULL;
+        }
+    }
+    else 
     {
         printf("～～～～～请求报文～～～～～\n");
         printf("======请求行======\n");
@@ -397,6 +425,9 @@ void epoll_run(int port)
     // 先添加监听的lfd
     int lfd = init_listen_fd(port, epfd);
 
+    // 创建线程池来并发处理多个事件，确定最小线程数，最大线程数，最大任务队列数
+    threadpool_t *thp = threadpool_create(MINSIZE, MAXSIZE, MAXSIZE);
+
     // 委托内核检测添加到树上的节点
     struct epoll_event all[MAXSIZE];
     while (1)
@@ -412,8 +443,11 @@ void epoll_run(int port)
         int i = 0;
         for (i = 0; i < ret; i++)
         {
-            
+            // 获取每个发生的事件
             struct epoll_event *pev = &all[i];
+            // 保存参数结构体
+            Info info;
+            memset(&info, 0, sizeof(info));
             // 如果事件不是读事件，跳过 
             if (!(pev->events & EPOLLIN))
             {
@@ -422,15 +456,23 @@ void epoll_run(int port)
             // 接收连接请求
             if (pev->data.fd == lfd)
             {
-                do_accept(lfd, epfd);
+
+                info.fd = lfd;
+                info.epfd = epfd;
+                // 将事件给加入到线程池中
+                threadpool_add_task(thp, do_accept,(void*)&info);
             }
             // 读取通信数据
             else
             {
-                do_read(pev->data.fd, epfd);
+                info.fd = pev->data.fd;
+                info.epfd = epfd;
+                threadpool_add_task(thp, do_read,(void*)&info);
             }
         }
     }
+    close(lfd);
+    threadpool_destroy(thp);
 }
 
 // 通过文件名获取文件的类型
