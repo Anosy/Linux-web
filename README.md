@@ -2,7 +2,7 @@
 ## 语言C/C++
 
 ### 主体
-1.**全部函数简介**
+1.**全部函数简介**<br>
 int hexit(char c);<br>
 void encode_str(char* to, int tosize, const char* from);<br>
 void decode_str(char *to, char *from);<br>
@@ -18,8 +18,8 @@ void do_read(int cfd, int efd);<br>
 void send_dir(int cfd, const char *filename);<br>
 const char *get_file_type(const char *name);<br>
 
-<br>
-**2.整体流程与函数**
+
+**2.整体流程与函数**<br>
 1.void epoll_run(int port)<br>
 利用epoll_create创建树的根节点<br>
 调用init_listen_fd来创建套接字，并且将其与服务器的绑定，监听，然后添加到epoll树上<br>
@@ -56,7 +56,7 @@ const char *get_file_type(const char *name);<br>
 9.void no_found(int cfd)<br>
 找不到文件或者目录，则调用该函数发送html文件，以及发送响应行404<br>
 
-<br>
+
 **3.难点和解决**<br>
 1.为什么使用边缘触发模式？<br>
 如果使用水平触发模式，循环下次调用epoll_wait的时候将会继续对该通信的文件描述符再次进行水平触发，直到缓冲区中的数据全部读取完毕，调用epoll_wait资源消耗大。
@@ -71,11 +71,12 @@ const char *get_file_type(const char *name);<br>
 解码：因为浏览器向服务器发送请求的时候，将会把中文url编码转换成%xx的形式，因此需要将其给转换成中文，来显示<br><br>
 编码：读取目录后存在中文的文件地址，那么在将文件作为herf发送给浏览器的时候，需要将其给转换成url编码的形式，否则将无法访问地址<br>
 
-<br>
+
 **4.效果图**<br>
-![](https://github.com/Anosy/Linux-web/blob/master/result/main_index.jpg)
-![](https://github.com/Anosy/Linux-web/blob/master/result/code.jpg)
-![](https://github.com/Anosy/Linux-web/blob/master/result/picture.jpg)
-![](https://github.com/Anosy/Linux-web/blob/master/result/music.jpg)
-![](https://github.com/Anosy/Linux-web/blob/master/result/404.jpg)
-![](https://github.com/Anosy/Linux-web/blob/master/result/log.jpg)
+![](https://github.com/Anosy/Linux-web/blob/master/result/main_index.jpg)<br>
+![](https://github.com/Anosy/Linux-web/blob/master/result/code.jpg)<br>
+![](https://github.com/Anosy/Linux-web/blob/master/result/picture.jpg)<br>
+![](https://github.com/Anosy/Linux-web/blob/master/result/music.jpg)<br>
+![](https://github.com/Anosy/Linux-web/blob/master/result/404.jpg)<br>
+![](https://github.com/Anosy/Linux-web/blob/master/result/log.jpg)<br>
+
