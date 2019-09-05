@@ -81,8 +81,14 @@ const char *get_file_type(const char *name);<br>
 因为在epoll_run函数中，在epoll_wait返回之后，调用for循环取处理每个事件，接收的请求不管是连接请求还是通信的请求都使用的是一个进程来执行。这将导致处理事件的过程成为一个串行的过程，
 需要等待一个事件处理完成，再去处理下一个事件，效率上很低。因此，添加上线程池，然后每次的请求就可以都加入到线程池中，让请求并发的处理，提高服务器的并发性。<br>
 
+**4.并发性测试**<br>
+利用webench程序，对服务器进行了压力测试<br>
+设置参数为500个client同时访问10秒，得到的结果如下:<br>
+可以发现，我们的服务器每分钟可以支持大约120000次的页面访问，即每秒可以支持访问2000次，并且成功率大概在99.5%
+![](https://github.com/Anosy/Linux-web/blob/master/result/webench.jpg)<br>
 
-**4.效果图**<br>
+
+**5.效果图**<br>
 ![](https://github.com/Anosy/Linux-web/blob/master/result/main_index.jpg)<br>
 ![](https://github.com/Anosy/Linux-web/blob/master/result/code.jpg)<br>
 ![](https://github.com/Anosy/Linux-web/blob/master/result/picture.jpg)<br>
